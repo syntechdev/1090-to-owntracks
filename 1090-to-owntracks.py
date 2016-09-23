@@ -26,6 +26,7 @@ def get_aircraft():
                         "_type"     : 'location',
                         "tst"       : int(time.time()),
                         "flight"    : craft['flight'].rstrip(),
+                        "squawk"    : craft['squawk'],
                         "lat"       : craft['lat'],
                         "lon"       : craft['lon'],
                         "vel"       : int(craft.get('speed', 0) * 1.852),
