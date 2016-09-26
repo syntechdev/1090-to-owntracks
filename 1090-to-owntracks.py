@@ -32,6 +32,9 @@ if __name__ == "__main__":
                 help='MQTT topic (e.g. ot/flights)',
                 dest='topic',
                 default="ot/flights")
+        parser.add_argument('--icao',
+                action='store_true',
+                help='Use ICAO hex code as topic key')
         parser.add_argument('--awsiot',
                 action='store_true',
                 help='Send to AWS IOT')
@@ -64,21 +67,28 @@ def get_aircraft():
         for craft in data['aircraft']:
         # {"hex":"4b9064","squawk":"3257","flight":"PGT6FT  ","lat":51.883633,"lon":8.310699,"nucp":7,"seen_pos":2.6,"altitude":35975,"vert_rate":0,"track":277,"speed":393,"category":"A0","messages":123,"seen":1.3,"rssi":-34.3}
 
-            if 'flight' in craft and 'lat' in craft:
+            if 'hex' in craft:
                 plane = {
                         "_type"     : 'location',
                         "tst"       : int(time.time()),
-                        "flight"    : craft['flight'].rstrip(),
-                        "lat"       : craft['lat'],
-                        "lon"       : craft['lon'],
                         "vel"       : int(craft.get('speed', 0) * 1.852),
                         "cog"       : craft.get('track', 0),
-                        "alt"       : int(craft.get('altitude', 0) / 3.2808),
                         "roc"       : int(craft.get('vert_rate', 0) / 3.2808 / 60), # rate of climb m/s
-                        "name"      : craft['flight'].rstrip(),
                     }
                 if 'squawk' in craft:
                     plane['squawk']     = craft.get('squawk')
+                if 'hex' in craft:
+                    plane['icao']       = craft.get('hex')
+                if 'altitude' in craft:
+                    if craft['altitude'] == 'ground':
+                        plane['alt']    = 'ground'
+                    else:
+                        plane['alt']    = int(float(craft.get('altitude', 0)) / 3.2808)
+                if 'flight' in craft:
+                    plane['name']       = craft['flight'].rstrip()
+                if 'lat' in craft and 'lon' in craft:
+                    plane['lat']        = craft['lat']
+                    plane['lon']        = craft['lon']
                 overhead.append(plane)
 
     return overhead
@@ -104,7 +114,10 @@ else:
 while True:
     overhead = get_aircraft()
     for aircraft in overhead:
-        topic = '%s/%s' % (args.topic, aircraft['flight'])
+        if args.icao and aircraft['icao']:
+            topic = '%s/%s' % (args.topic, aircraft['icao'])
+        else:
+            topic = '%s/%s' % (args.topic, aircraft['flight'])
 
         aircraft['_geoprec']    = 2
 
